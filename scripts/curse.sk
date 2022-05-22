@@ -1,3 +1,7 @@
+# DEPENDENCIES
+# SkBee, Skript-reflect
+# Tested on Skript 2.6.0 and 2.6.1
+
 import:
     org.bukkit.event.inventory.InventoryClickEvent
     
@@ -15,15 +19,23 @@ expression [event( |-)]([number ]key|hot[[ ]bar][ key])[ button]( |-)slot:
 
 # --------------------------------------------------------
 on enchant:
-    if item is book:
-        chance of 5%:
-            set lore of enchanted item to "&cCurse of Exclusivity"
+    if enchanted item is book:
+        chance of 4%:
+            set {_item} to enchanted book
+            set lore of {_item} to "&cCurse of Exclusivity"
+            set {_nbt} to nbt compound of {_item}
+            set byte tag "tag;undupeable" of {_nbt} to 1
+            set {_item} to nbt item of {_nbt}
+            set enchanted item to {_item}
+            wait 10 ticks
+            teleport player to player
+            send "&cYou got a curse of exclusivity book!" to player
 
 on rightclick with enchanted book:
     if lore of tool of player contains "&cCurse of Exclusivity":
         set player's tool to air
-        send "Deposit item to add curse to"
-        set metadata tag "CurseGUI" of player to chest inventory with 4 rows
+        send "&aSelect a item to apply the curse to!"
+        set metadata tag "CurseGUI" of player to chest inventory with 4 rows with name "Select a item to apply the curse to!"
         set {_num} to 35
         loop 36 times:
             set slot {_num} of metadata tag "CurseGUI" of player to slot {_num} of player's inventory
@@ -51,17 +63,52 @@ on inventory close:
         send "&cLooks like you accidentally closed the GUI! The book will be given back to you &e&lIN 5 SECONDS&c! &4&lCLEAR YOUR INVENTORY!"
         clear metadata tag "CurseGUI" of player
         wait 5 seconds
-        give player enchanted book with lore "&cCurse of Exclusivity"
+        set {_item} to enchanted book with lore "&cCurse of Exclusivity"
+        set {_nbt} to nbt compound of {_item}
+        set byte tag "tag;undupeable" of {_nbt} to 1
+        set {_item} to nbt item of {_nbt}
+        give player {_item}
 
 # --------------------------------------------------------
 
+every 10 seconds:
+  loop all players:
+    if {random::%loop-player%} = true:
+      give loop-player a random element of all items
+      chance of 1%:
+        set {_item} to enchanted book with lore "&cCurse of Exclusivity"
+        set {_nbt} to nbt compound of {_item}
+        set byte tag "tag;undupeable" of {_nbt} to 1
+        set {_item} to nbt item of {_nbt}
+        give loop-player {_item}
+        send "&cYou got a curse of exclusivity book!" to loop-player
+      wait 1 tick
+ 
+command /toggleitems:
+  trigger:
+    player's world = "world":
+      send "&c/toggleitems is only enabled in the void world." to player
+      stop
+    player's world = "void" or "void_nether" or "void_the_end":
+      if {random::%player%} = true:
+        set {random::%player%} to false
+        message "&cYou have disabled random items" to player
+        execute console command "scoreboard players set %player% toggleitems 0"
+      else:
+        set {random::%player%} to true
+        message "&aYou have enabled random items" to player
+        execute console command "scoreboard players set %player% toggleitems 1"
+
 command /dupe:
     trigger:
-        set {_nbt} to nbt of player's tool
-        if tag "undupeable" of {_nbt} is 1:
-            send "&cYou cannot dupe this item :)" to player
-        else:
-            give player's tool to player
+        if player's world is "void", "void_nether" or "void_the_end":
+            set {_nbt} to nbt of player's tool
+            if tag "undupeable" of {_nbt} is 1:
+                send "&cYou cannot dupe this item :)" to player
+            else:
+                give player's tool to player
+        else if player's world is "world":
+            send "&c/dupe is only enabled in the void world" to player
         
 command /dupeability [<text>]:
     permission: op
@@ -96,6 +143,7 @@ on inventory click:
         set {_nbt} to nbt compound of event-item
         if tag "tag;undupeable" of {_nbt} is 1:
             cancel event
+            send "&cYou cannot put a undupeable item into this inventory&c!" to player
 
 on inventory open:
     if type of event-inventory is not ender chest inventory:
