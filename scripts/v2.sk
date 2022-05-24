@@ -1,0 +1,136 @@
+# DEPENDENCIES
+# SkBee
+# Tested on Skript 2.6.0 and 2.6.1
+#
+# Version 2: No restrictions edition
+#  - Undupeable items can now be put in shulker boxes or basically anything
+#  - If the system detects a shulker box with an undupeable item in it, it will
+
+# --------------------------------------------------------
+on enchant:
+    if enchanted item is book:
+        chance of 4%:
+            set {_item} to enchanted book
+            set lore of {_item} to "&cCurse of Exclusivity"
+            set {_nbt} to nbt compound of {_item}
+            set byte tag "tag;undupeable" of {_nbt} to 1
+            set {_item} to nbt item of {_nbt}
+            set enchanted item to {_item}
+            wait 10 ticks
+            teleport player to player
+            send "&cYou got a curse of exclusivity book!" to player
+
+on rightclick with enchanted book:
+    if lore of tool of player contains "&cCurse of Exclusivity":
+        set player's tool to air
+        send "&aSelect a item to apply the curse to!"
+        set metadata tag "CurseGUI" of player to chest inventory with 4 rows with name "Select a item to apply the curse to!"
+        set {_num} to 35
+        loop 36 times:
+            set slot {_num} of metadata tag "CurseGUI" of player to slot {_num} of player's inventory
+            remove 1 from {_num}
+        open (metadata tag "CurseGUI" of player) to player
+
+on inventory click:
+    if event-inventory = (metadata tag "CurseGUI" of player):
+        if event-item is set:
+            clear metadata tag "CurseGUI" of player
+            cancel event
+            set {_item} to event-item
+            set {_slot} to index of event-slot
+            set lore of {_item} to "&cCurse of Exclusivity"
+            add "{undupeable:1b}" to nbt of {_item}
+            set slot {_slot} of player to {_item}
+            close inventory of player
+            play sound "ENTITY_PLAYER_LEVELUP" to player
+            send "&aYou applied the &cCurse of Exclusivity &ato %{_item}%"
+        else:
+            cancel event
+
+on inventory close:
+    if metadata tag "CurseGUI" of player is set:
+        send "&cLooks like you accidentally closed the GUI! The book will be given back to you &e&lIN 5 SECONDS&c! &4&lCLEAR YOUR INVENTORY!"
+        clear metadata tag "CurseGUI" of player
+        wait 5 seconds
+        set {_item} to enchanted book with lore "&cCurse of Exclusivity"
+        set {_nbt} to nbt compound of {_item}
+        set byte tag "tag;undupeable" of {_nbt} to 1
+        set {_item} to nbt item of {_nbt}
+        give player {_item}
+
+# --------------------------------------------------------
+
+every 10 seconds:
+  loop all players:
+    if {random::%loop-player%} = true:
+      give loop-player a random element of all items
+      chance of 1%:
+        set {_item} to enchanted book with lore "&cCurse of Exclusivity"
+        set {_nbt} to nbt compound of {_item}
+        set byte tag "tag;undupeable" of {_nbt} to 1
+        set {_item} to nbt item of {_nbt}
+        give loop-player {_item}
+        send "&cYou got a curse of exclusivity book!" to loop-player
+      wait 1 tick
+ 
+command /toggleitems:
+  trigger:
+    player's world = "world":
+      send "&c/toggleitems is only enabled in the void world." to player
+      stop
+    player's world = "void" or "void_nether" or "void_the_end":
+      if {random::%player%} = true:
+        set {random::%player%} to false
+        message "&cYou have disabled random items" to player
+        execute console command "scoreboard players set %player% toggleitems 0"
+      else:
+        set {random::%player%} to true
+        message "&aYou have enabled random items" to player
+        execute console command "scoreboard players set %player% toggleitems 1"
+
+command /dupe:
+    trigger:
+        if player's world is "void", "void_nether" or "void_the_end":
+            set {_nbt} to nbt compound of player's tool
+            if player's tool is any shulker box:
+                if tag "tag;undupeable" of {_nbt} is 1:
+                    send "&cYou cannot dupe this item :)" to player
+                else:
+                    set {_items::*} to compound list tag "tag;BlockEntityTag;Items" of {_nbt}
+                    loop {_items::*}:
+                        if tag "tag;undupeable" of loop-value is 1:
+                            set {_id} to tag "id" of loop-value
+                            add {_id} to {_failed::*}
+                    if {_failed::*} is set:
+                        send "&f-----------------&3&l ACTION FAILED &f-----------------%nl% &cInformation: %player's tool% &ccontains undupeable items.%nl%%nl%&aList of items:%nl% &f- &b%{_failed::*}%%nl%%nl%&f-----------------&3&l ACTION FAILED &f-----------------"
+                    else:
+                        give player's tool to player
+            else if tag "tag;undupeable" of {_nbt} is 1:
+                send "&cYou cannot dupe this item :)" to player
+            else:
+                give player's tool to player
+        else if player's world is "world":
+            send "&c/dupe is only enabled in the void world" to player
+        
+command /dupeability [<text>]:
+    permission: op
+    permission message: &cI'm sorry, but you do not have permission to execute this command.
+    description: ruins the lore of custom items
+    trigger:
+        if player's tool is not air:
+            if arg-1 is "true":
+                set lore of player's tool to "&cCurse of Exclusivity" 
+                send "&aMade held item undupeable."
+                add "{undupeable:1b}" to nbt of player's tool
+            else if arg-1 is "false":
+                set {_nbt} to nbt compound of player's tool
+                delete tag "tag;undupeable" of {_nbt}
+                set player's tool to nbt item of {_nbt}
+                add "{display:{Lore:[]}}" to player's tool's nbt
+                send "&aRemoved undupeability of held item." to player
+            else if arg-1 is not "true" or "false":
+                send "&cUsage: /dupeability <true | false>" to player
+            else if arg-1 is not set:
+                send "&cUsage: /dupeability <true | false>" to player
+        else:
+            send "&cHold a item to set the dupeability flag!" to player
